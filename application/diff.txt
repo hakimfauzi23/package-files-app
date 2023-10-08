@@ -1,0 +1,4 @@
+database/seeders/DatabaseSeeder.php
+database/seeders/Menu2Seeder.php
+database/seeders/PegawaiSeeder.php
+resources/views/layout/sidebar.blade.php
