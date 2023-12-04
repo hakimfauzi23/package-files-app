@@ -1,21 +1,17 @@
 package com.spe.deliveryworker.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.spe.deliveryworker.data.ConfigurationDto;
 import com.spe.deliveryworker.helper.ZipHelper;
 import com.spe.deliveryworker.service.FileService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.zip.ZipOutputStream;
 
 @Service
@@ -23,7 +19,6 @@ import java.util.zip.ZipOutputStream;
 @Slf4j
 public class FileServiceImpl implements FileService {
 
-    private final ResourceLoader resourceLoader;
 
     public static String combineArrayElements(String[] array, int startIndex, int endIndex) {
         if (startIndex < 0 || endIndex >= array.length || startIndex > endIndex) {
@@ -32,40 +27,6 @@ public class FileServiceImpl implements FileService {
 
         String[] subArray = Arrays.copyOfRange(array, startIndex, endIndex + 1);
         return String.join("/", subArray);
-    }
-
-
-    @Override
-    public Map<String, ArrayList<String>> readDiffFile(String fileDir) throws IOException {
-
-        log.info("Reading " + fileDir + " -- START --");
-        Map<String, ArrayList<String>> folderAndFileMap = new HashMap<>();
-        try (BufferedReader reader = new BufferedReader(new FileReader(fileDir))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] filePathArr = line.split("/");
-                String fileName = filePathArr[filePathArr.length - 1];
-                String filePath = combineArrayElements(filePathArr, 0, (filePathArr.length - 2));
-
-                ArrayList<String> fileNames;
-                if (!folderAndFileMap.containsKey(filePath)) {
-                    fileNames = new ArrayList<>();
-                } else {
-                    fileNames = folderAndFileMap.get(filePath);
-                    if (fileNames.contains(fileName)) {
-                        continue;
-                    }
-                }
-                fileNames.add(fileName);
-                folderAndFileMap.put(filePath, fileNames);
-
-            }
-
-            log.info("Successfully read " + fileDir);
-        }
-
-        log.info("Reading " + fileDir + " -- END --");
-        return folderAndFileMap;
     }
 
     @Override
@@ -123,7 +84,7 @@ public class FileServiceImpl implements FileService {
     }
 
     @Override
-    public void packageDirectories(String dstDirectory) throws IOException {
+    public void packageDirectories(String dstDirectory) {
         log.info("Zipping directory source code -- START -- ");
         String[] dstDirectoryArr = dstDirectory.split("/");
         StringBuilder zipFilePath = new StringBuilder();
@@ -146,10 +107,56 @@ public class FileServiceImpl implements FileService {
 
             File sourceFolder = new File(dstDirectory);
             ZipHelper.zipFile(sourceFolder, sourceFolder.getName(), zoStream);
+        } catch (IOException e) {
+            log.error(e.getMessage());
         }
 
         log.info("Successfully zip folder " + zipFilePath);
         log.info("Zipping directory source code -- END -- ");
+    }
+
+    @Override
+    public Map<String, ArrayList<String>> getFolderMapping(ArrayList<String> diffFiles) {
+        log.info("Fetching diffFiles List");
+        Map<String, ArrayList<String>> folderAndFileMap = new HashMap<>();
+
+        diffFiles.forEach(filepath -> {
+
+            ArrayList<String> fileNames;
+
+            String[] filePathArr = filepath.split("/");
+            String fileName = filePathArr[filePathArr.length - 1];
+            String filePath = combineArrayElements(filePathArr, 0, (filePathArr.length - 2));
+
+            if (!folderAndFileMap.containsKey(filePath)) {
+                fileNames = new ArrayList<>();
+                fileNames.add(fileName);
+            } else {
+                fileNames = folderAndFileMap.get(filePath);
+                if (!fileNames.contains(fileName)) {
+                    fileNames.add(fileName);
+                }
+            }
+
+            folderAndFileMap.put(filePath, fileNames);
+        });
+
+        return folderAndFileMap;
+    }
+
+    @Override
+    public ConfigurationDto readConfigurationJsonFile(String jsonFilePath) {
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        ConfigurationDto configurationDto = null;
+
+        try {
+            configurationDto = objectMapper.readValue(new File(jsonFilePath), ConfigurationDto.class);
+        } catch (IOException e) {
+            log.error(e.getMessage());
+        }
+
+        return configurationDto;
     }
 
 

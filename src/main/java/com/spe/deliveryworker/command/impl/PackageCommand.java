@@ -1,11 +1,11 @@
 package com.spe.deliveryworker.command.impl;
 
 import com.spe.deliveryworker.command.Command;
+import com.spe.deliveryworker.data.ConfigurationDto;
 import com.spe.deliveryworker.service.FileService;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -18,22 +18,13 @@ public class PackageCommand implements Command {
     @Override
     public void execute(String[] args) {
 
-        if (args.length < 3) {
-            System.out.println("Invalid Command Argument(s)");
-            System.exit(0);
-        }
+        String jsonFilePath = args[0];
+        ConfigurationDto configurationDto = fileService.readConfigurationJsonFile(jsonFilePath);
 
-        String diffFile = args[0];
-        String dstFolder = args[1];
-        String srcFolder = args[2];
+        Map<String, ArrayList<String>> folderMapping = fileService.getFolderMapping(configurationDto.getDiffFiles());
+        fileService.createDirectories(configurationDto.getDstFolder(), folderMapping);
+        fileService.copyFiles(configurationDto.getDstFolder(), folderMapping, configurationDto.getSrcFolder());
+        fileService.packageDirectories(configurationDto.getDstFolder());
 
-        try {
-            Map<String, ArrayList<String>> testMap = fileService.readDiffFile(diffFile);
-            fileService.createDirectories(dstFolder, testMap);
-            fileService.copyFiles(dstFolder, testMap, srcFolder);
-            fileService.packageDirectories(dstFolder);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 }
